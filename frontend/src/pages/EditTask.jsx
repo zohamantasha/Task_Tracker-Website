@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Navbar from '../components/Navbar'
 import API from '../api/axios'
+import '../styles/EditTask.css'
+
 
 function EditTask() {
   const { taskId } = useParams()

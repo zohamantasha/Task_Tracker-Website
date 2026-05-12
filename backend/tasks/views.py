@@ -14,7 +14,9 @@ def get_tasks(request):
     if request.user.role == 'admin':
         tasks = Task.objects.all().order_by('-created_at')
     else:
-        tasks = Task.objects.filter(assigned_to=request.user).order_by('-created_at')
+        tasks = Task.objects.filter(
+            assigned_to=request.user
+        ).order_by('-created_at')
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
@@ -64,6 +66,18 @@ def task_details(request, pk):
         return Response({'error': 'Task not found'}, status=404)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_updates(request, pk):
+    try:
+        task = Task.objects.get(id=pk)
+        updates = WorkUpdate.objects.filter(task=task).order_by('-created_at')
+        serializer = WorkUpdateSerializer(updates, many=True)
+        return Response(serializer.data)
+    except Task.DoesNotExist:
+        return Response({'error': 'Task not found'}, status=404)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_update(request, pk):
@@ -72,25 +86,48 @@ def add_update(request, pk):
         update = WorkUpdate.objects.create(
             task=task,
             user=request.user,
-            update_text=request.data.get('update_text'),
-            hours_spent=request.data.get('hours_spent', 1),
+            update_text=request.data.get('update_text', 'Update submitted'),
+            hours_spent=request.data.get('hours_spent', 0),
             progress_percentage=request.data.get('progress_percentage', 0)
         )
 
-        progress = int(request.data.get('progress_percentage', 0))
-        if progress >= 100:
+        # Check ALL assigned users latest progress
+        assigned_users = task.assigned_to.all()
+        all_done = True
+        any_started = False
+
+        for user in assigned_users:
+            latest = WorkUpdate.objects.filter(
+                task=task, user=user
+            ).order_by('-created_at').first()
+
+            if latest:
+                if latest.progress_percentage >= 100:
+                    any_started = True
+                elif latest.progress_percentage > 0:
+                    any_started = True
+                    all_done = False
+                else:
+                    all_done = False
+            else:
+                all_done = False
+
+        if all_done and assigned_users.count() > 0:
             task.status = 'completed'
-        elif progress > 0:
+        elif any_started:
             task.status = 'in_progress'
         else:
             task.status = 'pending'
+
         task.save()
 
         serializer = WorkUpdateSerializer(update)
         return Response(serializer.data)
+
     except Task.DoesNotExist:
         return Response({'error': 'Task not found'}, status=404)
-    
+
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def edit_task(request, pk):
@@ -128,14 +165,3 @@ def delete_task(request, pk):
         return Response({'message': 'Task deleted'}, status=204)
     except Task.DoesNotExist:
         return Response({'error': 'Task not found'}, status=404)
-    
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_updates(request, pk):
-    try:
-        task = Task.objects.get(id=pk)
-        updates = WorkUpdate.objects.filter(task=task).order_by('-created_at')
-        serializer = WorkUpdateSerializer(updates, many=True)
-        return Response(serializer.data)
-    except Task.DoesNotExist:
-        return Response({'error': 'Task not found'}, status=404) 

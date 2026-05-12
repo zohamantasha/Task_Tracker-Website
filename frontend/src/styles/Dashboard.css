@@ -379,3 +379,13 @@
     align-items: flex-start;
   }
 }
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.dashboard-content {
+  padding: 2rem;
+  min-width: 0;
+}
