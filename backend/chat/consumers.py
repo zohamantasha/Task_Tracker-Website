@@ -40,8 +40,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'message': {
                         'id': str(message.id),
                         'sender_name': self.user.username,
+                        'sender': str(self.user.id),
                         'content': message.content,
                         'created_at': message.created_at.isoformat(),
+                        'seen_by_names': [],
+                        'seen_by_all': False,
                     }
                 }
             )

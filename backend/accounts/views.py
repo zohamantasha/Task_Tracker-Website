@@ -29,13 +29,25 @@ class MyTokenRefreshView(TokenRefreshView):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # ← add this
+@permission_classes([AllowAny])
 def register_user(request):
     try:
         username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
         role = request.data.get('role', 'user')
+
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {'error': f'Username "{username}" is already registered'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': f'Email "{email}" is already registered'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         user = User.objects.create_user(
             username=username,
@@ -45,10 +57,12 @@ def register_user(request):
         user.role = role
         user.save()
 
-        return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
+        return Response(
+            {'message': f'{role.capitalize()} registered successfully'},
+            status=status.HTTP_201_CREATED
+        )
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
